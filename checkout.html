@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Checkout — MockShop</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- SEON JavaScript Agent v6 -->
+  <script src="https://cdn.seondf.com/js/v6/agent.js"></script>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="index.html">Mock<span>Shop</span></a>
+  <nav>
+    <a href="index.html">← Back to shop</a>
+  </nav>
+</header>
+
+<main>
+  <h1 class="page-title">Checkout</h1>
+  <p class="page-subtitle">Your transaction will be screened by SEON in real time.</p>
+
+  <div class="checkout-layout">
+
+    <!-- ── Left: form ── -->
+    <div>
+      <div class="card" style="margin-bottom:1.25rem">
+        <p class="card-title">Contact information</p>
+
+        <div class="form-group">
+          <label for="email">Email address *</label>
+          <input type="email" id="email" placeholder="you@example.com" required />
+        </div>
+
+        <div class="form-group">
+          <label for="phone">Phone number</label>
+          <input type="tel" id="phone" placeholder="+1 555 000 0000" />
+          <p class="input-hint">Optional — improves fraud detection accuracy</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:1.25rem">
+        <p class="card-title">Payment details</p>
+
+        <div class="form-group">
+          <label for="card_bin">Card BIN (first 6 digits) *</label>
+          <input type="text" id="card_bin" placeholder="424242" maxlength="6" pattern="\d{6}" required />
+          <p class="input-hint">Try 424242 (Visa), 555555 (MC), 378282 (Amex)</p>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="card_expiry">Expiry</label>
+            <input type="text" id="card_expiry" placeholder="MM/YY" maxlength="5" />
+          </div>
+          <div class="form-group">
+            <label for="card_cvv">CVV</label>
+            <input type="text" id="card_cvv" placeholder="•••" maxlength="4" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <p class="card-title">Shipping address</p>
+
+        <div class="form-group">
+          <label for="full_name">Full name *</label>
+          <input type="text" id="full_name" placeholder="Jane Smith" required />
+        </div>
+
+        <div class="form-group">
+          <label for="address">Address</label>
+          <input type="text" id="address" placeholder="123 Main St, Apt 4B" />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="city">City</label>
+            <input type="text" id="city" placeholder="New York" />
+          </div>
+          <div class="form-group">
+            <label for="postal">Postal code</label>
+            <input type="text" id="postal" placeholder="10001" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Right: order summary + pay button ── -->
+    <div>
+      <div class="card" style="margin-bottom:1.25rem">
+        <p class="card-title">Order summary</p>
+        <div class="order-item">
+          <span id="summary-product">Loading…</span>
+          <span id="summary-amount">—</span>
+        </div>
+        <div class="order-item">
+          <span>Shipping</span>
+          <span style="color:var(--approve);font-weight:600">FREE</span>
+        </div>
+        <div class="order-total">
+          <span>Total</span>
+          <span id="summary-total">—</span>
+        </div>
+      </div>
+
+      <!-- SEON fingerprint status -->
+      <div class="seon-badge loading" id="seon-status">
+        <span class="dot"></span>
+        <span id="seon-status-text">Initializing fraud protection…</span>
+      </div>
+
+      <!-- Error box (shown on API/CORS errors) -->
+      <div class="error-box" id="error-box"></div>
+
+      <button class="btn btn-primary" id="pay-btn" style="width:100%;justify-content:center;padding:.85rem;font-size:1rem" onclick="handleCheckout()">
+        Place order & pay
+      </button>
+
+      <p style="font-size:.75rem;color:var(--muted);text-align:center;margin-top:.75rem">
+        🔒 Protected by SEON fraud prevention
+      </p>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  MockShop &copy; 2025 — Demo store for SEON integration evaluation
+</footer>
+
+<!-- ── Result modal ── -->
+<div class="result-overlay" id="result-overlay">
+  <div class="result-modal" id="result-modal">
+    <div class="result-icon" id="result-icon"></div>
+    <div class="result-state" id="result-state"></div>
+    <div class="result-score" id="result-score"></div>
+    <div class="result-details" id="result-details"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="location.href='index.html'">
+      Back to shop
+    </button>
+  </div>
+</div>
+
+<script>
+// ── Configuration ──────────────────────────────────────────────────────────
+const SEON_API_KEY = 'YOUR_SEON_API_KEY'; // Replace with your sandbox key
+const SEON_API_URL = 'https://api.seon.io/SeonRestService/fraud-api/v2/';
+
+// ── Parse URL params ────────────────────────────────────────────────────────
+const params = new URLSearchParams(location.search);
+const productName = params.get('product') || 'Product';
+const amount      = parseFloat(params.get('amount') || '0');
+const sku         = params.get('sku') || 'UNKNOWN';
+
+document.getElementById('summary-product').textContent = productName;
+document.getElementById('summary-amount').textContent  = `$${amount.toFixed(2)}`;
+document.getElementById('summary-total').textContent   = `$${amount.toFixed(2)}`;
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+function uuid() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+
+async function getClientIP() {
+  try {
+    const r = await fetch('https://api.ipify.org?format=json');
+    const d = await r.json();
+    return d.ip;
+  } catch {
+    return null;
+  }
+}
+
+// ── SEON JS Agent init ───────────────────────────────────────────────────────
+let seonReady = false;
+let seonError = null;
+
+(async () => {
+  const statusEl   = document.getElementById('seon-status');
+  const statusText = document.getElementById('seon-status-text');
+
+  try {
+    if (typeof seon === 'undefined') throw new Error('SEON JS Agent failed to load');
+
+    await seon.init({
+      host: 'seondf.com',
+      silent_mode: true,
+    });
+
+    seonReady = true;
+    statusEl.classList.remove('loading');
+    statusEl.classList.add('ready');
+    statusText.textContent = 'Fraud protection active';
+  } catch (err) {
+    seonError = err.message;
+    statusText.textContent = 'Fraud protection unavailable (JS Agent error)';
+    console.warn('[SEON] init error:', err);
+  }
+})();
+
+// ── Checkout handler ────────────────────────────────────────────────────────
+async function handleCheckout() {
+  const email   = document.getElementById('email').value.trim();
+  const phone   = document.getElementById('phone').value.trim();
+  const cardBin = document.getElementById('card_bin').value.trim();
+  const name    = document.getElementById('full_name').value.trim();
+
+  // Basic validation
+  if (!email || !cardBin || cardBin.length !== 6 || !name) {
+    showError('Please fill in your email, full name, and a valid 6-digit card BIN.');
+    return;
+  }
+
+  if (SEON_API_KEY === 'YOUR_SEON_API_KEY') {
+    showError('API key not configured. Replace YOUR_SEON_API_KEY in checkout.html with your SEON sandbox license key.');
+    return;
+  }
+
+  // Loading state
+  const btn = document.getElementById('pay-btn');
+  btn.innerHTML = '<span class="spinner"></span>Checking transaction…';
+  btn.disabled = true;
+  hideError();
+
+  try {
+    // 1. Get device fingerprint session token from SEON JS Agent
+    let sessionToken = null;
+    const sessionId = uuid();
+
+    if (seonReady) {
+      try {
+        sessionToken = await seon.getSession({
+          host: 'seondf.com',
+          session_id: sessionId,
+        });
+      } catch (e) {
+        console.warn('[SEON] getSession error:', e);
+      }
+    }
+
+    // 2. Get client IP
+    const clientIp = await getClientIP();
+
+    // 3. Build Fraud API payload (ecommerce / purchase use case)
+    const transactionId = uuid();
+    const payload = {
+      config: {
+        api_fields: ['email', 'ip', 'card_bin', 'aml'],
+        aml: { enabled: false },
+      },
+      action_type: 'purchase',
+      transaction_id: transactionId,
+      email: email,
+      ip: clientIp || undefined,
+      phone_number: phone || undefined,
+      card_bin: cardBin,
+      purchase_amount: amount,
+      purchase_currency: 'USD',
+      full_name: name,
+      custom_fields: {
+        product_sku: sku,
+        product_name: productName,
+        integration_type: 'browser_direct',
+        demo: true,
+      },
+    };
+
+    if (sessionToken) {
+      payload.session = sessionToken;
+    }
+
+    // 4. Call SEON Fraud API
+    const response = await fetch(SEON_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-KEY': SEON_API_KEY,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || data.error_code) {
+      throw new Error(data.message || data.error || `HTTP ${response.status}`);
+    }
+
+    // 5. Show result
+    showResult(data, transactionId, sessionToken !== null);
+
+  } catch (err) {
+    console.error('[SEON] checkout error:', err);
+
+    let msg = err.message;
+
+    // CORS detection
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      msg = 'Network error — SEON API may not allow direct browser calls (CORS). '
+          + 'A backend proxy is recommended for production. '
+          + 'Check the browser console for details.';
+    }
+
+    showError(msg);
+    btn.innerHTML = 'Place order & pay';
+    btn.disabled = false;
+  }
+}
+
+// ── Result display ──────────────────────────────────────────────────────────
+function showResult(data, txId, hasSession) {
+  const d = data.data || {};
+  const state = d.state || 'UNKNOWN';
+  const score = typeof d.fraud_score === 'number' ? d.fraud_score.toFixed(1) : '—';
+
+  const icons  = { APPROVE: '✅', REVIEW: '⚠️', DECLINE: '❌', UNKNOWN: '❓' };
+  const labels = { APPROVE: 'Approved', REVIEW: 'Under Review', DECLINE: 'Declined', UNKNOWN: 'Unknown' };
+  const classes = {
+    APPROVE: 'result-bg-approve',
+    REVIEW:  'result-bg-review',
+    DECLINE: 'result-bg-decline',
+    UNKNOWN: 'result-bg-review',
+  };
+
+  document.getElementById('result-icon').textContent  = icons[state]  || '❓';
+  document.getElementById('result-state').textContent = labels[state] || state;
+  document.getElementById('result-score').textContent = `Fraud score: ${score} / 100`;
+
+  // Build detail rows
+  const emailData = d.email_details || {};
+  const ipData    = d.ip_details    || {};
+  const cardData  = d.card_details  || {};
+
+  const rows = [
+    ['Transaction ID',    txId.slice(0, 8) + '…'],
+    ['Product',           productName],
+    ['Amount',            `$${amount.toFixed(2)} USD`],
+    ['Email domain',      emailData.email_domain            || '—'],
+    ['Email deliverable', emailData.deliverable != null ? (emailData.deliverable ? 'Yes' : 'No') : '—'],
+    ['IP country',        ipData.ip_country                 || '—'],
+    ['IP type',           ipData.ip_type                    || '—'],
+    ['VPN / Proxy',       ipData.vpn != null ? (ipData.vpn ? 'Yes' : 'No') : '—'],
+    ['Card country',      cardData.card_country             || '—'],
+    ['Card type',         cardData.card_type                || '—'],
+    ['Device fingerprint', hasSession ? 'Captured' : 'Not captured'],
+  ];
+
+  document.getElementById('result-details').innerHTML = rows.map(([k, v]) =>
+    `<div class="result-detail-row">
+       <span class="result-detail-label">${k}</span>
+       <span class="result-detail-value">${v}</span>
+     </div>`
+  ).join('');
+
+  const modal = document.getElementById('result-modal');
+  modal.className = `result-modal ${classes[state] || ''}`;
+
+  document.getElementById('result-overlay').classList.add('show');
+}
+
+// ── Utility ──────────────────────────────────────────────────────────────────
+function showError(msg) {
+  const box = document.getElementById('error-box');
+  box.textContent = '⚠ ' + msg;
+  box.style.display = 'block';
+}
+
+function hideError() {
+  document.getElementById('error-box').style.display = 'none';
+}
+
+// Close modal on backdrop click
+document.getElementById('result-overlay').addEventListener('click', function(e) {
+  if (e.target === this) this.classList.remove('show');
+});
+</script>
+
+</body>
+</html>
