@@ -242,21 +242,38 @@ async function getClientIP() {
 }
 
 // ── SEON JS Agent init ───────────────────────────────────────────────────────
+// seon.init() takes no arguments in v6 basic usage — silentMode belongs in
+// getSession config, not here. Init is also optional: docs confirm the Fraud
+// API call succeeds without it (device signals still collected by getSession).
 let seonReady = false;
+let seonInitError = null;
 (async () => {
   const statusEl   = document.getElementById('seon-status');
   const statusText = document.getElementById('seon-status-text');
-  try {
-    if (typeof seon === 'undefined') throw new Error('JS Agent script did not load');
-    // silentMode (camelCase) — not silent_mode. Docs list camelCase config keys.
-    await seon.init({ silentMode: true });
-    seonReady = true;
-    statusEl.classList.replace('loading', 'ready');
-    statusText.textContent = 'Device fingerprint active';
-  } catch (err) {
-    statusText.textContent = 'Device fingerprint unavailable';
-    console.warn('[SEON init]', err);
+
+  if (typeof seon === 'undefined') {
+    seonInitError = 'SDK script failed to load from CDN';
+    statusText.textContent = 'Device fingerprint unavailable (script blocked)';
+    console.error('[SEON] script not loaded — check CSP / network');
+    return;
   }
+
+  try {
+    // No config args — basic init for behavioral tracking
+    await seon.init();
+  } catch (err) {
+    // Init failure is non-fatal; getSession can still work per SEON docs:
+    // "Without seon.init() you will still receive valid device intelligence signals"
+    seonInitError = err.message;
+    console.warn('[SEON init] non-fatal:', err.message);
+  }
+
+  // Mark ready regardless of init result — let getSession decide
+  seonReady = true;
+  statusEl.classList.replace('loading', 'ready');
+  statusText.textContent = seonInitError
+    ? `Device fingerprint partial (init: ${seonInitError})`
+    : 'Device fingerprint active';
 })();
 
 // ── Checkout ─────────────────────────────────────────────────────────────────
@@ -277,12 +294,20 @@ async function handleCheckout() {
   hideError();
 
   try {
-    // 1. Device fingerprint
+    // 1. Device fingerprint — silentMode suppresses the SEON UI overlay
     let sessionToken = null;
+    let sessionErr   = null;
     if (seonReady) {
       try {
-        sessionToken = await seon.getSession({ host: 'seondf.com', session_id: uuid() });
-      } catch (e) { console.warn('[SEON getSession]', e); }
+        sessionToken = await seon.getSession({
+          host:       'seondf.com',
+          session_id: uuid(),
+          silentMode: true,   // suppress any SEON-injected UI — belongs here, not in init()
+        });
+      } catch (e) {
+        sessionErr = e.message;
+        console.error('[SEON getSession]', e);
+      }
     }
 
     // 2. IP
@@ -330,7 +355,7 @@ async function handleCheckout() {
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    showResult(body, transactionId, !!sessionToken, payload);
+    showResult(body, transactionId, !!sessionToken, sessionErr, payload);
 
   } catch (err) {
     console.error('[SEON checkout]', err);
@@ -364,7 +389,7 @@ function section(title, rows) {
   </div>`;
 }
 
-function showResult(body, txId, hasSession, sentPayload) {
+function showResult(body, txId, hasSession, sessionErr, sentPayload) {
   const d      = body.data || {};
   const state  = d.state   || 'UNKNOWN';
   const score  = typeof d.fraud_score    === 'number' ? d.fraud_score.toFixed(1)    : null;
@@ -434,7 +459,9 @@ function showResult(body, txId, hasSession, sentPayload) {
   // ── Device ──
   const dv = d.device_details || {};
   const deviceRows = [
-    row('Captured',     hasSession ? '<span class="val-ok">Yes</span>' : '<span class="val-yes">No — JS Agent error</span>'),
+    row('Captured',     hasSession
+          ? '<span class="val-ok">Yes</span>'
+          : `<span class="val-yes">No${sessionErr ? ' — ' + sessionErr : (seonInitError ? ' — init: ' + seonInitError : ' — SDK unavailable')}</span>`),
     row('Browser',      val(dv.browser_name)),
     row('OS',           val(dv.os_name)),
     row('Device type',  val(dv.device_type)),
