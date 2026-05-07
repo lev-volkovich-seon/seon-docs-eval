@@ -289,7 +289,7 @@
       <span class="hero-chip">8 docs pages read</span>
       <span class="hero-chip">~27,400 tokens consumed</span>
       <span class="hero-chip">Ecommerce · Purchase flow</span>
-      <span class="hero-chip" style="background:rgba(239,68,68,.2);border-color:rgba(239,68,68,.4);color:#fca5a5">4 production bugs found</span>
+      <span class="hero-chip" style="background:rgba(239,68,68,.2);border-color:rgba(239,68,68,.4);color:#fca5a5">5 production bugs found</span>
     </div>
   </div>
 
@@ -740,8 +740,8 @@
         <div class="finding-body">
           Running the integration revealed three further bugs, each traceable to a documentation gap:
           <br><br>
-          <strong>Bug 1 — Wrong config format (empty enrichment response)</strong><br>
-          The LLM built the config as <code>{ api_fields: ['email','ip','card_bin'], aml: { enabled: false } }</code> based on the Quick Start payload. Neither <code>api_fields</code> nor <code>aml.enabled</code> are valid config properties. The real format uses boolean flags: <code>{ email_api: true, ip_api: true, phone_api: true }</code>. With the wrong config the API returned 200 OK but with all enrichment fields empty — no email data, no IP data, no card data. Silent failure again.
+          <strong>Bug 1 — Wrong config format (empty enrichment response + naming inconsistency)</strong><br>
+          The LLM built the config as <code>{ api_fields: ['email','ip','card_bin'], aml: { enabled: false } }</code> based on the Quick Start payload. Neither <code>api_fields</code> nor <code>aml.enabled</code> are valid config properties. The real format uses boolean flags: <code>{ email_api: true, ip_api: true, phone_api: true }</code>. With the wrong config the API returned 200 OK but with all enrichment fields empty — silent failure. A follow-up attempt to enable device fingerprinting used <code>device_fingerprint: true</code> (logical, consistent with the other flag names) — but the actual key is <code>device_fingerprinting</code>. This time the API did return error <code>1029: "Incorrect config parameter: 'config.device_fingerprint' should be 'config.device_fingerprinting'"</code> — which is excellent error messaging, but the inconsistency (<code>email_api</code>, <code>ip_api</code>, <code>phone_api</code> vs <code>device_fingerprinting</code> — no <code>_api</code> suffix, with an <code>ing</code> ending) is unpredictable and not documented in one place.
           <br><br>
           <strong>Bug 2 — camelCase vs snake_case on JS Agent config (device fingerprint not captured)</strong><br>
           The LLM called <code>seon.init({ silent_mode: true })</code> using snake_case — consistent with how all Fraud API payload fields are named. But the JS Agent config uses camelCase: <code>silentMode</code>. The two naming conventions coexist in the same integration with no warning. The init call accepted the unknown key silently, but the intended option was never applied. Worse: if <code>seon.init()</code> throws for any reason, <code>seonReady</code> stays <code>false</code> and <code>getSession()</code> is never called — no device data, no error shown.
@@ -758,7 +758,8 @@
             </tr>
             <tr><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>config.api_fields: ['email','ip']</code></td><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>config.email_api: true, config.ip_api: true</code></td></tr>
             <tr style="background:#fafafa"><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>config.aml: { enabled: false }</code></td><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>config.aml_api: false</code></td></tr>
-            <tr><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>seon.init({ silent_mode: true })</code></td><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>seon.init({ silentMode: true })</code></td></tr>
+            <tr><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>config.device_fingerprint: true</code></td><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>config.device_fingerprinting: true</code> <span style="color:#dc2626">(error 1029)</span></td></tr>
+            <tr style="background:#fafafa"><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>seon.init({ silent_mode: true })</code></td><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>seon.init({ silentMode: true })</code></td></tr>
             <tr style="background:#fafafa"><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>if (data.error_code)</code></td><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>if (data.success === false && data.error)</code></td></tr>
           </table>
         </div>

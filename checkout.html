@@ -297,7 +297,7 @@ async function handleCheckout() {
         phone_api:          !!phone,   // only if phone was provided
         ip_api:             true,
         aml_api:            false,     // requires AML setup in Admin
-        device_fingerprint: true,
+        device_fingerprinting: true,  // NOT device_fingerprint — extra 'ing', easy to get wrong
       },
       action_type:          'purchase',
       transaction_id:       transactionId,
