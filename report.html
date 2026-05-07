@@ -289,7 +289,7 @@
       <span class="hero-chip">8 docs pages read</span>
       <span class="hero-chip">~27,400 tokens consumed</span>
       <span class="hero-chip">Ecommerce · Purchase flow</span>
-      <span class="hero-chip" style="background:rgba(239,68,68,.2);border-color:rgba(239,68,68,.4);color:#fca5a5">6 bugs found in production</span>
+      <span class="hero-chip" style="background:rgba(239,68,68,.2);border-color:rgba(239,68,68,.4);color:#fca5a5">7 bugs found in production</span>
     </div>
   </div>
 
@@ -745,8 +745,10 @@
           <br><br>
           <strong>Bug 2 — Wrong seon.init() args + silentMode in wrong place (device fingerprint not captured)</strong><br>
           The LLM called <code>seon.init({ silentMode: true })</code> passing <code>silentMode</code> as an init config option, consistent with how the docs list it under "JS Agent config options". But <code>seon.init()</code> in v6 takes <strong>no arguments</strong> — it's a bare call. The config options including <code>silentMode</code> belong in <code>seon.getSession()</code>, not <code>seon.init()</code>. Passing an unexpected object to <code>init()</code> caused it to throw, <code>seonReady</code> stayed <code>false</code>, and <code>getSession()</code> was never called. No device data, no meaningful error shown to the user — just "JS Agent error". Three pages of JS Agent documentation exist but none of them clearly separate which config options belong in <code>init()</code> vs <code>getSession()</code>.<br><br>
-          <strong>Bug 2b — CSP headers not documented for hosted/serverless deployments</strong><br>
-          Even with init fixed, the JS Agent was blocked on the Vercel deployment because Vercel adds no CSP headers by default and the SDK needs <code>connect-src *.seondnsresolve.com</code>, <code>worker-src blob:</code>, and <code>img-src data:</code>. The SEON docs mention these CSP requirements — but buried in a small callout on the JS Agent page with no guidance for common hosting platforms. Fix required adding explicit CSP headers to <code>vercel.json</code>.
+          <strong>Bug 2b — Wrong CDN URL and wrong filename (script never loaded)</strong><br>
+          The LLM inferred the CDN URL as <code>https://cdn.seondf.com/js/v6/agent.js</code> — combining the host <code>seondf.com</code> (seen in getSession config examples) with a guessed filename <code>agent.js</code>. Neither is correct. The three valid CDN URLs are <code>cdn.dfsdk.com</code>, <code>cdn.deviceinf.com</code>, and <code>cdn.seonintelligence.com</code>, and the filename is <code>agent.umd.js</code>, not <code>agent.js</code>. The script tag 404'd silently — the browser loaded no SDK, <code>window.seon</code> was never defined, and the LLM's error message said only "script not loaded — check CSP / network" with no further detail. This is the most LLM-visible failure in the entire integration: a completely wrong URL assembled from partial information scattered across the docs, with no single canonical "copy this script tag" example visible to a non-JS-rendering fetcher.<br><br>
+          <strong>Bug 2c — CSP headers not documented for hosted deployments</strong><br>
+          The SDK also requires <code>connect-src *.seondnsresolve.com</code>, <code>worker-src blob:</code>, and <code>img-src data:</code> — mentioned in a callout but with no platform-specific guidance. Fix required explicitly adding these to <code>vercel.json</code>.
           <br><br>
           <strong>Bug 3 — Error response shape not documented (error check always passed)</strong><br>
           The original error check was <code>if (data.error_code)</code>. But the actual SEON error response shape is <code>{ success: false, error: { code, message } }</code>. The check silently passed for every error response, so API errors were never surfaced to the user — the modal just showed empty data.
@@ -761,7 +763,8 @@
             <tr><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>config.api_fields: ['email','ip']</code></td><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>config.email_api: true, config.ip_api: true</code></td></tr>
             <tr style="background:#fafafa"><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>config.aml: { enabled: false }</code></td><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>config.aml_api: false</code></td></tr>
             <tr><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>config.device_fingerprint: true</code></td><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>config.device_fingerprinting: true</code> <span style="color:#dc2626">(error 1029)</span></td></tr>
-            <tr style="background:#fafafa"><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>seon.init({ silent_mode: true })</code></td><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>seon.init({ silentMode: true })</code></td></tr>
+            <tr style="background:#fafafa"><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>cdn.seondf.com/js/v6/agent.js</code></td><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>cdn.seonintelligence.com/js/v6/agent.umd.js</code> <span style="color:#dc2626">(wrong domain + wrong filename)</span></td></tr>
+            <tr><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>seon.init({ silentMode: true })</code></td><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>seon.init()</code> — no args; silentMode goes in getSession</td></tr>
             <tr style="background:#fafafa"><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>if (data.error_code)</code></td><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>if (data.success === false && data.error)</code></td></tr>
           </table>
         </div>
