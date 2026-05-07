@@ -289,7 +289,7 @@
       <span class="hero-chip">8 docs pages read</span>
       <span class="hero-chip">~27,400 tokens consumed</span>
       <span class="hero-chip">Ecommerce · Purchase flow</span>
-      <span class="hero-chip" style="background:rgba(239,68,68,.2);border-color:rgba(239,68,68,.4);color:#fca5a5">1 production bug found</span>
+      <span class="hero-chip" style="background:rgba(239,68,68,.2);border-color:rgba(239,68,68,.4);color:#fca5a5">4 production bugs found</span>
     </div>
   </div>
 
@@ -733,6 +733,38 @@
           The docs contain no mention of CORS policy. All examples use server-side code but no warning is given against browser-direct calls. The LLM was explicitly asked to build a browser-only integration and had to fall back on inferred best practice (server-side proxy). An integrator without that background knowledge would hit a confusing network error with no documentation to help diagnose it.
         </div>
         <div class="finding-rec"><strong>Fix:</strong> One sentence in the Introduction: "The SEON API is designed for server-side use. Always proxy requests through your backend to protect your API key and avoid CORS restrictions." Zero effort, prevents significant confusion.</div>
+      </div>
+
+      <div class="finding finding-high" style="border-color:#7c3aed;background:#faf5ff">
+        <div class="finding-title"><span class="impact-badge" style="background:#ede9fe;color:#4c1d95">🐛 3 More Bugs Found</span> Config format, JS Agent option name, and error shape — all docs-caused</div>
+        <div class="finding-body">
+          Running the integration revealed three further bugs, each traceable to a documentation gap:
+          <br><br>
+          <strong>Bug 1 — Wrong config format (empty enrichment response)</strong><br>
+          The LLM built the config as <code>{ api_fields: ['email','ip','card_bin'], aml: { enabled: false } }</code> based on the Quick Start payload. Neither <code>api_fields</code> nor <code>aml.enabled</code> are valid config properties. The real format uses boolean flags: <code>{ email_api: true, ip_api: true, phone_api: true }</code>. With the wrong config the API returned 200 OK but with all enrichment fields empty — no email data, no IP data, no card data. Silent failure again.
+          <br><br>
+          <strong>Bug 2 — camelCase vs snake_case on JS Agent config (device fingerprint not captured)</strong><br>
+          The LLM called <code>seon.init({ silent_mode: true })</code> using snake_case — consistent with how all Fraud API payload fields are named. But the JS Agent config uses camelCase: <code>silentMode</code>. The two naming conventions coexist in the same integration with no warning. The init call accepted the unknown key silently, but the intended option was never applied. Worse: if <code>seon.init()</code> throws for any reason, <code>seonReady</code> stays <code>false</code> and <code>getSession()</code> is never called — no device data, no error shown.
+          <br><br>
+          <strong>Bug 3 — Error response shape not documented (error check always passed)</strong><br>
+          The original error check was <code>if (data.error_code)</code>. But the actual SEON error response shape is <code>{ success: false, error: { code, message } }</code>. The check silently passed for every error response, so API errors were never surfaced to the user — the modal just showed empty data.
+        </div>
+        <div class="finding-evidence">
+          <strong>Config bugs — what was sent vs what the API expects</strong>
+          <table style="width:100%;border-collapse:collapse;margin-top:.4rem;font-size:.8rem">
+            <tr style="background:#f1f5f9">
+              <th style="text-align:left;padding:.35rem .6rem;border:1px solid #e2e8f0">What LLM sent (from Quick Start)</th>
+              <th style="text-align:left;padding:.35rem .6rem;border:1px solid #e2e8f0">What API actually requires</th>
+            </tr>
+            <tr><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>config.api_fields: ['email','ip']</code></td><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>config.email_api: true, config.ip_api: true</code></td></tr>
+            <tr style="background:#fafafa"><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>config.aml: { enabled: false }</code></td><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>config.aml_api: false</code></td></tr>
+            <tr><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>seon.init({ silent_mode: true })</code></td><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>seon.init({ silentMode: true })</code></td></tr>
+            <tr style="background:#fafafa"><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>if (data.error_code)</code></td><td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>if (data.success === false && data.error)</code></td></tr>
+          </table>
+        </div>
+        <div class="finding-rec">
+          <strong>Root cause:</strong> Three separate naming inconsistencies in the same integration — snake_case payload fields but camelCase JS Agent config, a Quick Start config format that doesn't match the field reference, and an undocumented error response shape. All three would be eliminated by an OpenAPI spec (for the API layer) and a single clearly-documented JS Agent config reference (for the SDK layer). The LLM had no reliable single source of truth to verify against.
+        </div>
       </div>
 
       <div class="finding finding-low">

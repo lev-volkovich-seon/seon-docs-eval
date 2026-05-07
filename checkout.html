@@ -5,6 +5,54 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Checkout — MockShop</title>
   <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── Rich result modal ── */
+    .result-overlay { align-items: flex-start; padding: 2rem 1rem; overflow-y: auto; }
+    .result-modal   { max-width: 560px; width: 100%; margin: auto; max-height: none; }
+
+    .result-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; }
+    .result-icon-big { font-size: 2.75rem; line-height: 1; flex-shrink: 0; }
+    .result-state   { font-size: 1.65rem; font-weight: 900; }
+    .result-scores  { display: flex; gap: .75rem; margin-top: .3rem; }
+    .result-score-chip {
+      background: rgba(0,0,0,.08); border-radius: 6px;
+      padding: .25rem .65rem; font-size: .8rem; font-weight: 700;
+    }
+
+    .result-section { margin-bottom: 1.1rem; }
+    .result-section-title {
+      font-size: .7rem; font-weight: 800; text-transform: uppercase;
+      letter-spacing: .07em; color: #6b7280; margin-bottom: .45rem;
+      padding-bottom: .3rem; border-bottom: 1px solid rgba(0,0,0,.08);
+    }
+    .result-rows { display: flex; flex-direction: column; gap: 0; }
+    .result-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: .3rem 0; font-size: .83rem;
+      border-bottom: 1px solid rgba(0,0,0,.05);
+    }
+    .result-row:last-child { border-bottom: none; }
+    .result-row-label { color: #6b7280; flex-shrink: 0; margin-right: .75rem; }
+    .result-row-value { font-weight: 500; text-align: right; word-break: break-word; }
+    .val-yes  { color: var(--decline); }
+    .val-no   { color: var(--approve); }
+    .val-warn { color: var(--review); }
+    .val-ok   { color: var(--approve); }
+    .val-muted{ color: #9ca3af; }
+
+    .rules-list { display: flex; flex-direction: column; gap: .35rem; }
+    .rule-chip {
+      display: flex; justify-content: space-between;
+      background: rgba(0,0,0,.05); border-radius: 6px;
+      padding: .35rem .65rem; font-size: .78rem;
+    }
+    .rule-score { font-weight: 700; }
+    .rule-score.pos { color: var(--decline); }
+    .rule-score.neg { color: var(--approve); }
+
+    .json-toggle { font-size: .75rem; color: var(--accent); cursor: pointer; text-align: right; margin-top: .6rem; display: block; }
+    .json-block { display: none; background: #0f172a; color: #94a3b8; border-radius: 8px; padding: .85rem; font-size: .72rem; overflow-x: auto; font-family: monospace; line-height: 1.55; margin-top: .5rem; max-height: 280px; overflow-y: auto; }
+  </style>
   <!-- SEON JavaScript Agent v6 -->
   <script src="https://cdn.seondf.com/js/v6/agent.js"></script>
 </head>
@@ -28,12 +76,10 @@
     <div>
       <div class="card" style="margin-bottom:1.25rem">
         <p class="card-title">Contact information</p>
-
         <div class="form-group">
           <label for="email">Email address *</label>
           <input type="email" id="email" placeholder="you@example.com" required />
         </div>
-
         <div class="form-group">
           <label for="phone">Phone number</label>
           <input type="tel" id="phone" placeholder="+1 555 000 0000" />
@@ -43,13 +89,11 @@
 
       <div class="card" style="margin-bottom:1.25rem">
         <p class="card-title">Payment details</p>
-
         <div class="form-group">
           <label for="card_bin">Card BIN (first 6 digits) *</label>
           <input type="text" id="card_bin" placeholder="424242" maxlength="6" pattern="\d{6}" required />
           <p class="input-hint">Try 424242 (Visa), 555555 (MC), 378282 (Amex)</p>
         </div>
-
         <div class="form-row">
           <div class="form-group">
             <label for="card_expiry">Expiry</label>
@@ -64,17 +108,14 @@
 
       <div class="card">
         <p class="card-title">Shipping address</p>
-
         <div class="form-group">
           <label for="full_name">Full name *</label>
           <input type="text" id="full_name" placeholder="Jane Smith" required />
         </div>
-
         <div class="form-group">
           <label for="address">Address</label>
           <input type="text" id="address" placeholder="123 Main St, Apt 4B" />
         </div>
-
         <div class="form-row">
           <div class="form-group">
             <label for="city">City</label>
@@ -88,7 +129,7 @@
       </div>
     </div>
 
-    <!-- ── Right: order summary + pay button ── -->
+    <!-- ── Right: summary + actions ── -->
     <div>
       <div class="card" style="margin-bottom:1.25rem">
         <p class="card-title">Order summary</p>
@@ -106,22 +147,19 @@
         </div>
       </div>
 
-      <!-- Auto-fill -->
       <button class="btn btn-outline" id="autofill-btn" style="width:100%;justify-content:center;margin-bottom:.75rem" onclick="autoFill()">
         ⚡ Auto-fill with test data
       </button>
 
-      <!-- SEON fingerprint status -->
       <div class="seon-badge loading" id="seon-status">
         <span class="dot"></span>
         <span id="seon-status-text">Initializing fraud protection…</span>
       </div>
 
-      <!-- Error box (shown on API/CORS errors) -->
       <div class="error-box" id="error-box"></div>
 
       <button class="btn btn-primary" id="pay-btn" style="width:100%;justify-content:center;padding:.85rem;font-size:1rem" onclick="handleCheckout()">
-        Place order & pay
+        Place order &amp; pay
       </button>
 
       <p style="font-size:.75rem;color:var(--muted);text-align:center;margin-top:.75rem">
@@ -139,51 +177,41 @@
 <!-- ── Result modal ── -->
 <div class="result-overlay" id="result-overlay">
   <div class="result-modal" id="result-modal">
-    <div class="result-icon" id="result-icon"></div>
-    <div class="result-state" id="result-state"></div>
-    <div class="result-score" id="result-score"></div>
-    <div class="result-details" id="result-details"></div>
-    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="location.href='index.html'">
+    <div id="result-content"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:1rem" onclick="location.href='index.html'">
       Back to shop
     </button>
   </div>
 </div>
 
 <script>
-// ── Configuration ──────────────────────────────────────────────────────────
-const SEON_API_URL = '/api/seon-check'; // Serverless proxy — key is server-side
+const SEON_API_URL = '/api/seon-check';
 
-// ── Auto-fill test data ──────────────────────────────────────────────────────
+// ── Test profiles ────────────────────────────────────────────────────────────
 const TEST_PROFILES = [
-  { name: 'Alice Johnson',   email: 'alice.johnson@gmail.com',      phone: '+14155552671', bin: '424242', city: 'San Francisco', postal: '94105', street: '101 Market St',     flag: '🟢 Low risk' },
-  { name: 'Bob Smith',       email: 'bob.smith@outlook.com',        phone: '+12125550182', bin: '555555', city: 'New York',      postal: '10001', street: '350 5th Ave',       flag: '🟢 Low risk' },
-  { name: 'Carlos Rivera',   email: 'carlos.r@yahoo.com',           phone: '+13105559823', bin: '378282', city: 'Los Angeles',   postal: '90001', street: '6500 Sunset Blvd',  flag: '🟢 Low risk' },
-  { name: 'Diana Wei',       email: 'diana.wei@protonmail.com',     phone: '+16175554321', bin: '400000', city: 'Boston',        postal: '02101', street: '1 Financial Ctr',   flag: '🟡 Medium risk' },
-  { name: 'Ethan Müller',    email: 'ethan.muller@temp-mail.org',   phone: '+4915215559876',bin: '676130', city: 'Berlin',       postal: '10115', street: 'Unter den Linden 1',flag: '🟡 Medium risk' },
-  { name: 'Fiona Black',     email: 'fiona99@mailinator.com',       phone: '+44207559001', bin: '491761', city: 'London',        postal: 'EC1A 1BB', street: '10 Downing St', flag: '🔴 Higher risk' },
-  { name: 'George Tanaka',   email: 'g.tanaka@guerrillamail.com',   phone: '+81345559012', bin: '356600', city: 'Tokyo',         postal: '100-0001', street: '1-1 Chiyoda',   flag: '🔴 Higher risk' },
+  { name:'Alice Johnson',  email:'alice.johnson@gmail.com',     phone:'+14155552671',  bin:'424242', city:'San Francisco', postal:'94105',    street:'101 Market St',       flag:'🟢 Low risk' },
+  { name:'Bob Smith',      email:'bob.smith@outlook.com',       phone:'+12125550182',  bin:'555555', city:'New York',      postal:'10001',    street:'350 5th Ave',          flag:'🟢 Low risk' },
+  { name:'Carlos Rivera',  email:'carlos.r@yahoo.com',          phone:'+13105559823',  bin:'378282', city:'Los Angeles',   postal:'90001',    street:'6500 Sunset Blvd',     flag:'🟢 Low risk' },
+  { name:'Diana Wei',      email:'diana.wei@protonmail.com',    phone:'+16175554321',  bin:'400000', city:'Boston',        postal:'02101',    street:'1 Financial Ctr',      flag:'🟡 Medium risk' },
+  { name:'Ethan Müller',   email:'ethan.muller@temp-mail.org',  phone:'+4915215559876',bin:'676130', city:'Berlin',        postal:'10115',    street:'Unter den Linden 1',   flag:'🟡 Medium risk' },
+  { name:'Fiona Black',    email:'fiona99@mailinator.com',      phone:'+44207559001',  bin:'491761', city:'London',        postal:'EC1A 1BB', street:'10 Downing St',        flag:'🔴 Higher risk' },
+  { name:'George Tanaka',  email:'g.tanaka@guerrillamail.com',  phone:'+81345559012',  bin:'356600', city:'Tokyo',         postal:'100-0001', street:'1-1 Chiyoda',          flag:'🔴 Higher risk' },
 ];
-
 let profileIndex = 0;
 
 function autoFill() {
   const p = TEST_PROFILES[profileIndex % TEST_PROFILES.length];
   profileIndex++;
-
-  document.getElementById('full_name').value  = p.name;
-  document.getElementById('email').value      = p.email;
-  document.getElementById('phone').value      = p.phone;
-  document.getElementById('card_bin').value   = p.bin;
-  document.getElementById('card_expiry').value= '12/27';
-  document.getElementById('card_cvv').value   = '123';
-  document.getElementById('address').value    = p.street;
-  document.getElementById('city').value       = p.city;
-  document.getElementById('postal').value     = p.postal;
-
-  const btn = document.getElementById('autofill-btn');
-  btn.textContent = `⚡ ${p.flag} — click again to rotate`;
-
-  // Flash fields
+  document.getElementById('full_name').value   = p.name;
+  document.getElementById('email').value       = p.email;
+  document.getElementById('phone').value       = p.phone;
+  document.getElementById('card_bin').value    = p.bin;
+  document.getElementById('card_expiry').value = '12/27';
+  document.getElementById('card_cvv').value    = '123';
+  document.getElementById('address').value     = p.street;
+  document.getElementById('city').value        = p.city;
+  document.getElementById('postal').value      = p.postal;
+  document.getElementById('autofill-btn').textContent = `⚡ ${p.flag} — click again to rotate`;
   ['full_name','email','phone','card_bin','card_expiry','card_cvv','address','city','postal'].forEach(id => {
     const el = document.getElementById(id);
     el.style.transition = 'background .15s';
@@ -192,17 +220,15 @@ function autoFill() {
   });
 }
 
-// ── Parse URL params ────────────────────────────────────────────────────────
-const params = new URLSearchParams(location.search);
+// ── URL params ───────────────────────────────────────────────────────────────
+const params      = new URLSearchParams(location.search);
 const productName = params.get('product') || 'Product';
 const amount      = parseFloat(params.get('amount') || '0');
 const sku         = params.get('sku') || 'UNKNOWN';
-
 document.getElementById('summary-product').textContent = productName;
 document.getElementById('summary-amount').textContent  = `$${amount.toFixed(2)}`;
 document.getElementById('summary-total').textContent   = `$${amount.toFixed(2)}`;
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
 function uuid() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
     const r = Math.random() * 16 | 0;
@@ -211,206 +237,274 @@ function uuid() {
 }
 
 async function getClientIP() {
-  try {
-    const r = await fetch('https://api.ipify.org?format=json');
-    const d = await r.json();
-    return d.ip;
-  } catch {
-    return null;
-  }
+  try { return (await (await fetch('https://api.ipify.org?format=json')).json()).ip; }
+  catch { return null; }
 }
 
 // ── SEON JS Agent init ───────────────────────────────────────────────────────
 let seonReady = false;
-let seonError = null;
-
 (async () => {
   const statusEl   = document.getElementById('seon-status');
   const statusText = document.getElementById('seon-status-text');
-
   try {
-    if (typeof seon === 'undefined') throw new Error('SEON JS Agent failed to load');
-
-    await seon.init({
-      host: 'seondf.com',
-      silent_mode: true,
-    });
-
+    if (typeof seon === 'undefined') throw new Error('JS Agent script did not load');
+    // silentMode (camelCase) — not silent_mode. Docs list camelCase config keys.
+    await seon.init({ silentMode: true });
     seonReady = true;
-    statusEl.classList.remove('loading');
-    statusEl.classList.add('ready');
-    statusText.textContent = 'Fraud protection active';
+    statusEl.classList.replace('loading', 'ready');
+    statusText.textContent = 'Device fingerprint active';
   } catch (err) {
-    seonError = err.message;
-    statusText.textContent = 'Fraud protection unavailable (JS Agent error)';
-    console.warn('[SEON] init error:', err);
+    statusText.textContent = 'Device fingerprint unavailable';
+    console.warn('[SEON init]', err);
   }
 })();
 
-// ── Checkout handler ────────────────────────────────────────────────────────
+// ── Checkout ─────────────────────────────────────────────────────────────────
 async function handleCheckout() {
   const email   = document.getElementById('email').value.trim();
   const phone   = document.getElementById('phone').value.trim();
   const cardBin = document.getElementById('card_bin').value.trim();
   const name    = document.getElementById('full_name').value.trim();
 
-  // Basic validation
   if (!email || !cardBin || cardBin.length !== 6 || !name) {
-    showError('Please fill in your email, full name, and a valid 6-digit card BIN.');
+    showError('Please fill in email, full name, and a 6-digit card BIN.');
     return;
   }
 
-  // Loading state
   const btn = document.getElementById('pay-btn');
   btn.innerHTML = '<span class="spinner"></span>Checking transaction…';
-  btn.disabled = true;
+  btn.disabled  = true;
   hideError();
 
   try {
-    // 1. Get device fingerprint session token from SEON JS Agent
+    // 1. Device fingerprint
     let sessionToken = null;
-    const sessionId = uuid();
-
     if (seonReady) {
       try {
-        sessionToken = await seon.getSession({
-          host: 'seondf.com',
-          session_id: sessionId,
-        });
-      } catch (e) {
-        console.warn('[SEON] getSession error:', e);
-      }
+        sessionToken = await seon.getSession({ host: 'seondf.com', session_id: uuid() });
+      } catch (e) { console.warn('[SEON getSession]', e); }
     }
 
-    // 2. Get client IP
+    // 2. IP
     const clientIp = await getClientIP();
 
-    // 3. Build Fraud API payload (ecommerce / purchase use case)
+    // 3. Payload — all sub-APIs enabled via boolean flags in config
+    //    (NOT api_fields array — that was a docs-led mistake; real format uses booleans)
     const transactionId = uuid();
     const payload = {
       config: {
-        api_fields: ['email', 'ip', 'card_bin', 'aml'],
-        aml: { enabled: false },
+        email_api:          true,
+        phone_api:          !!phone,   // only if phone was provided
+        ip_api:             true,
+        aml_api:            false,     // requires AML setup in Admin
+        device_fingerprint: true,
       },
-      action_type: 'purchase',
-      transaction_id: transactionId,
-      email: email,
-      ip: clientIp || undefined,
-      phone_number: phone || undefined,
-      card_bin: cardBin,
-      transaction_amount: amount,   // NOT purchase_amount — docs inconsistency (Quick Start vs field reference)
-      transaction_currency: 'USD',  // NOT purchase_currency
-      user_fullname: name,          // NOT full_name
+      action_type:          'purchase',
+      transaction_id:       transactionId,
+      email:                email,
+      ip:                   clientIp   || undefined,
+      phone_number:         phone      || undefined,
+      card_bin:             cardBin,
+      transaction_amount:   amount,
+      transaction_currency: 'USD',
+      user_fullname:        name,
       custom_fields: {
-        product_sku: sku,
-        product_name: productName,
-        integration_type: 'browser_direct',
-        demo: true,
+        product_sku:        sku,
+        product_name:       productName,
+        demo:               true,
       },
     };
+    if (sessionToken) payload.session = sessionToken;
 
-    if (sessionToken) {
-      payload.session = sessionToken;
-    }
-
-    // 4. Call SEON Fraud API via serverless proxy
-    const response = await fetch(SEON_API_URL, {
-      method: 'POST',
+    // 4. Call proxy
+    const res  = await fetch(SEON_API_URL, {
+      method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body:    JSON.stringify(payload),
     });
+    const body = await res.json();
 
-    const data = await response.json();
-
-    if (!response.ok || data.error_code) {
-      throw new Error(data.message || data.error || `HTTP ${response.status}`);
+    // Error check — SEON wraps errors as { success: false, error: { code, message } }
+    if (body.success === false && body.error) {
+      throw new Error(`SEON error ${body.error.code}: ${body.error.message}`);
     }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    // 5. Show result
-    showResult(data, transactionId, sessionToken !== null);
+    showResult(body, transactionId, !!sessionToken, payload);
 
   } catch (err) {
-    console.error('[SEON] checkout error:', err);
-
-    let msg = err.message;
-
-    if (err instanceof TypeError) {
-      msg = 'Network error — could not reach the API. Check your connection.';
-    }
-
-    showError(msg);
-    btn.innerHTML = 'Place order & pay';
-    btn.disabled = false;
+    console.error('[SEON checkout]', err);
+    showError(err instanceof TypeError ? 'Network error — could not reach the API.' : err.message);
+    btn.innerHTML = 'Place order &amp; pay';
+    btn.disabled  = false;
   }
 }
 
-// ── Result display ──────────────────────────────────────────────────────────
-function showResult(data, txId, hasSession) {
-  const d = data.data || {};
-  const state = d.state || 'UNKNOWN';
-  const score = typeof d.fraud_score === 'number' ? d.fraud_score.toFixed(1) : '—';
-
-  const icons  = { APPROVE: '✅', REVIEW: '⚠️', DECLINE: '❌', UNKNOWN: '❓' };
-  const labels = { APPROVE: 'Approved', REVIEW: 'Under Review', DECLINE: 'Declined', UNKNOWN: 'Unknown' };
-  const classes = {
-    APPROVE: 'result-bg-approve',
-    REVIEW:  'result-bg-review',
-    DECLINE: 'result-bg-decline',
-    UNKNOWN: 'result-bg-review',
-  };
-
-  document.getElementById('result-icon').textContent  = icons[state]  || '❓';
-  document.getElementById('result-state').textContent = labels[state] || state;
-  document.getElementById('result-score').textContent = `Fraud score: ${score} / 100`;
-
-  // Build detail rows
-  const emailData = d.email_details || {};
-  const ipData    = d.ip_details    || {};
-  const cardData  = d.card_details  || {};
-
-  const rows = [
-    ['Transaction ID',    txId.slice(0, 8) + '…'],
-    ['Product',           productName],
-    ['Amount',            `$${amount.toFixed(2)} USD`],
-    ['Email domain',      emailData.email_domain            || '—'],
-    ['Email deliverable', emailData.deliverable != null ? (emailData.deliverable ? 'Yes' : 'No') : '—'],
-    ['IP country',        ipData.ip_country                 || '—'],
-    ['IP type',           ipData.ip_type                    || '—'],
-    ['VPN / Proxy',       ipData.vpn != null ? (ipData.vpn ? 'Yes' : 'No') : '—'],
-    ['Card country',      cardData.card_country             || '—'],
-    ['Card type',         cardData.card_type                || '—'],
-    ['Device fingerprint', hasSession ? 'Captured' : 'Not captured'],
-  ];
-
-  document.getElementById('result-details').innerHTML = rows.map(([k, v]) =>
-    `<div class="result-detail-row">
-       <span class="result-detail-label">${k}</span>
-       <span class="result-detail-value">${v}</span>
-     </div>`
-  ).join('');
-
-  const modal = document.getElementById('result-modal');
-  modal.className = `result-modal ${classes[state] || ''}`;
-
-  document.getElementById('result-overlay').classList.add('show');
+// ── Rich result display ───────────────────────────────────────────────────────
+function val(v, opts = {}) {
+  if (v === null || v === undefined || v === '') return `<span class="val-muted">—</span>`;
+  if (opts.bool) return v ? `<span class="val-yes">Yes</span>` : `<span class="val-no">No</span>`;
+  if (opts.invBool) return v ? `<span class="val-no">Yes</span>` : `<span class="val-ok">No</span>`;
+  if (opts.risk && typeof v === 'number') {
+    const cls = v > 70 ? 'val-yes' : v > 30 ? 'val-warn' : 'val-ok';
+    return `<span class="${cls}">${v}</span>`;
+  }
+  return String(v);
 }
 
-// ── Utility ──────────────────────────────────────────────────────────────────
+function row(label, value) {
+  return `<div class="result-row"><span class="result-row-label">${label}</span><span class="result-row-value">${value}</span></div>`;
+}
+
+function section(title, rows) {
+  if (!rows.length) return '';
+  return `<div class="result-section">
+    <div class="result-section-title">${title}</div>
+    <div class="result-rows">${rows.join('')}</div>
+  </div>`;
+}
+
+function showResult(body, txId, hasSession, sentPayload) {
+  const d      = body.data || {};
+  const state  = d.state   || 'UNKNOWN';
+  const score  = typeof d.fraud_score    === 'number' ? d.fraud_score.toFixed(1)    : null;
+  const bbScore= typeof d.blackbox_score === 'number' ? d.blackbox_score.toFixed(1) : null;
+  const calcMs = d.calculation_time;
+
+  const stateMap = {
+    APPROVE: { icon: '✅', label: 'Approved',     cls: 'result-bg-approve' },
+    REVIEW:  { icon: '⚠️', label: 'Under Review', cls: 'result-bg-review'  },
+    DECLINE: { icon: '❌', label: 'Declined',     cls: 'result-bg-decline' },
+  };
+  const sm = stateMap[state] || { icon: '❓', label: state, cls: 'result-bg-review' };
+
+  // ── Email ──
+  const em = d.email_details || {};
+  const emailRows = [
+    row('Domain',          val(em.email_domain)),
+    row('Free provider',   val(em.free_provider,  { bool: true })),
+    row('Deliverable',     val(em.deliverable,    { invBool: true })),
+    row('Valid MX',        val(em.valid_mx,       { invBool: false })),
+    row('Disposable',      val(em.disposable,     { bool: true })),
+    row('Domain age',      em.domain_registered_at ? val(em.domain_registered_at) : val(null)),
+    row('Breach count',    val(em.data_breach)),
+    row('Social profiles', em.account_details?.length
+        ? em.account_details.map(a => a.name).join(', ')
+        : val(null)),
+  ].filter(r => !r.includes('val-muted">—'));
+
+  // ── IP ──
+  const ip = d.ip_details || {};
+  const ipRows = [
+    row('IP address',   val(ip.ip)),
+    row('Country',      val(ip.ip_country)),
+    row('City',         val(ip.ip_city)),
+    row('ISP',          val(ip.isp)),
+    row('IP type',      val(ip.ip_type)),
+    row('VPN',          val(ip.vpn,   { bool: true })),
+    row('Proxy',        val(ip.proxy, { bool: true })),
+    row('Tor',          val(ip.tor,   { bool: true })),
+    row('Bot',          val(ip.bot,   { bool: true })),
+    row('Country risk', val(ip.country_risk_score, { risk: true })),
+  ].filter(r => !r.includes('val-muted">—'));
+
+  // ── BIN / Card ──
+  const bn = d.bin_details || d.card_details || {};
+  const binRows = [
+    row('Card brand',   val(bn.card_brand || bn.scheme)),
+    row('Card type',    val(bn.card_type)),
+    row('Prepaid',      val(bn.prepaid,   { bool: true })),
+    row('Issuing bank', val(bn.bank_name || bn.issuer_name)),
+    row('Card country', val(bn.bank_country || bn.card_country)),
+    row('Debit / Credit', val(bn.debit_credit || bn.card_category)),
+  ].filter(r => !r.includes('val-muted">—'));
+
+  // ── Phone ──
+  const ph = d.phone_details || {};
+  const phoneRows = [
+    row('Line type',    val(ph.type || ph.line_type)),
+    row('Carrier',      val(ph.carrier)),
+    row('Country',      val(ph.country)),
+    row('Valid',        val(ph.valid, { invBool: false })),
+    row('Social profiles', ph.account_details?.length
+        ? ph.account_details.map(a => a.name).join(', ')
+        : val(null)),
+  ].filter(r => !r.includes('val-muted">—'));
+
+  // ── Device ──
+  const dv = d.device_details || {};
+  const deviceRows = [
+    row('Captured',     hasSession ? '<span class="val-ok">Yes</span>' : '<span class="val-yes">No — JS Agent error</span>'),
+    row('Browser',      val(dv.browser_name)),
+    row('OS',           val(dv.os_name)),
+    row('Device type',  val(dv.device_type)),
+    row('Bot detected', val(dv.bot, { bool: true })),
+    row('Suspicious flags', dv.suspicious_flags?.length ? dv.suspicious_flags.join(', ') : val(null)),
+  ].filter(r => !r.includes('val-muted">—'));
+
+  // ── Rules ──
+  const rules = d.applied_rules || [];
+  const rulesHtml = rules.length
+    ? `<div class="result-section">
+        <div class="result-section-title">Applied rules (${rules.length})</div>
+        <div class="rules-list">${rules.map(r =>
+          `<div class="rule-chip">
+            <span>${r.name || r.id || 'Rule'}</span>
+            <span class="rule-score ${r.score > 0 ? 'pos' : 'neg'}">${r.score > 0 ? '+' : ''}${r.score}</span>
+          </div>`
+        ).join('')}</div>
+      </div>`
+    : '';
+
+  // ── Assemble ──
+  const html = `
+    <div class="result-header">
+      <div class="result-icon-big">${sm.icon}</div>
+      <div>
+        <div class="result-state">${sm.label}</div>
+        <div class="result-scores">
+          ${score    != null ? `<span class="result-score-chip">Fraud score: ${score}</span>` : ''}
+          ${bbScore  != null ? `<span class="result-score-chip">AI score: ${bbScore}</span>`  : ''}
+          ${calcMs   != null ? `<span class="result-score-chip">${calcMs} ms</span>`           : ''}
+        </div>
+      </div>
+    </div>
+
+    ${section('📧 Email intelligence', emailRows)}
+    ${section('🌐 IP intelligence',    ipRows)}
+    ${section('💳 Card / BIN',         binRows)}
+    ${section('📱 Phone intelligence', phoneRows)}
+    ${section('🖥 Device',              deviceRows)}
+    ${rulesHtml}
+
+    <span class="json-toggle" onclick="toggleJson(this)">Show raw API response ▾</span>
+    <pre class="json-block">${JSON.stringify(body, null, 2)}</pre>
+  `;
+
+  document.getElementById('result-content').innerHTML = html;
+  const modal = document.getElementById('result-modal');
+  modal.className = `result-modal ${sm.cls}`;
+  document.getElementById('result-overlay').classList.add('show');
+  document.getElementById('result-overlay').scrollTop = 0;
+}
+
+function toggleJson(el) {
+  const block = el.nextElementSibling;
+  const open  = block.style.display === 'block';
+  block.style.display = open ? 'none' : 'block';
+  el.textContent = open ? 'Show raw API response ▾' : 'Hide raw API response ▴';
+}
+
 function showError(msg) {
   const box = document.getElementById('error-box');
   box.textContent = '⚠ ' + msg;
   box.style.display = 'block';
 }
+function hideError() { document.getElementById('error-box').style.display = 'none'; }
 
-function hideError() {
-  document.getElementById('error-box').style.display = 'none';
-}
-
-// Close modal on backdrop click
 document.getElementById('result-overlay').addEventListener('click', function(e) {
   if (e.target === this) this.classList.remove('show');
 });
 </script>
-
 </body>
 </html>
