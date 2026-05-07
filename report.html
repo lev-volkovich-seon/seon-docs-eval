@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SEON Docs Evaluation Report — MockShop</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .report-hero {
+      background: var(--primary);
+      color: white;
+      padding: 3rem 2rem;
+      margin-bottom: 2.5rem;
+      border-radius: var(--radius);
+    }
+    .report-hero h1 { font-size: 1.9rem; font-weight: 800; margin-bottom: .5rem; }
+    .report-hero p  { color: rgba(255,255,255,.7); font-size: .95rem; }
+    .report-meta    { display: flex; gap: 1.5rem; margin-top: 1.25rem; flex-wrap: wrap; }
+    .report-meta span {
+      background: rgba(255,255,255,.1);
+      border-radius: 6px;
+      padding: .3rem .75rem;
+      font-size: .8rem;
+      color: rgba(255,255,255,.85);
+    }
+
+    /* How-to box */
+    .howto { background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: var(--radius); padding: 1.5rem 1.75rem; margin-bottom: 2rem; }
+    .howto h2 { font-size: 1.05rem; font-weight: 700; color: #1d4ed8; margin-bottom: 1rem; }
+    .steps { counter-reset: step; list-style: none; }
+    .steps li { counter-increment: step; display: flex; gap: 1rem; margin-bottom: .85rem; align-items: flex-start; }
+    .steps li::before {
+      content: counter(step);
+      min-width: 28px; height: 28px;
+      background: #1d4ed8; color: white;
+      border-radius: 50%; font-size: .8rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 1px;
+    }
+    .steps li p { font-size: .9rem; line-height: 1.5; }
+    .steps li code { background: #dbeafe; padding: .1em .4em; border-radius: 4px; font-size: .82rem; }
+
+    /* Score card strip */
+    .score-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
+    @media (max-width: 600px) { .score-strip { grid-template-columns: 1fr; } }
+    .score-card { border-radius: var(--radius); padding: 1.25rem 1.5rem; }
+    .score-card .score-label { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: .25rem; }
+    .score-card .score-value { font-size: 2.2rem; font-weight: 800; }
+    .score-card .score-sub   { font-size: .8rem; margin-top: .25rem; }
+    .score-approve { background: var(--approve-bg); border: 2px solid var(--approve); color: var(--approve); }
+    .score-review  { background: var(--review-bg);  border: 2px solid var(--review);  color: var(--review); }
+    .score-decline { background: var(--decline-bg); border: 2px solid var(--decline); color: var(--decline); }
+
+    /* Section styles */
+    .section { margin-bottom: 2.5rem; }
+    .section-title {
+      font-size: 1.2rem; font-weight: 700; margin-bottom: 1rem;
+      padding-bottom: .5rem; border-bottom: 2px solid var(--border);
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .section-title .icon { font-size: 1.1rem; }
+
+    /* Finding cards */
+    .findings { display: flex; flex-direction: column; gap: .85rem; }
+    .finding {
+      background: var(--surface);
+      border-radius: 10px;
+      border-left: 4px solid;
+      padding: 1rem 1.25rem;
+      box-shadow: var(--shadow);
+    }
+    .finding-good    { border-color: var(--approve); }
+    .finding-high    { border-color: var(--decline); }
+    .finding-medium  { border-color: var(--review); }
+    .finding-low     { border-color: #6366f1; }
+    .finding-title   { font-weight: 700; font-size: .95rem; margin-bottom: .3rem; display: flex; align-items: center; gap: .5rem; }
+    .finding-body    { font-size: .87rem; color: #374151; line-height: 1.55; }
+    .finding-rec     { margin-top: .5rem; font-size: .82rem; background: var(--bg); border-radius: 6px; padding: .5rem .75rem; color: var(--muted); }
+    .finding-rec strong { color: var(--text); }
+
+    .impact-badge {
+      display: inline-block; font-size: .7rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .04em;
+      padding: .15em .55em; border-radius: 999px;
+    }
+    .impact-high   { background: #fee2e2; color: #991b1b; }
+    .impact-medium { background: #fef3c7; color: #92400e; }
+    .impact-low    { background: #ede9fe; color: #4c1d95; }
+    .impact-good   { background: #d1fae5; color: #065f46; }
+
+    /* Complexity table */
+    .complexity-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+    .complexity-table th { text-align: left; padding: .6rem 1rem; background: var(--bg); font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+    .complexity-table td { padding: .65rem 1rem; border-bottom: 1px solid var(--border); }
+    .complexity-table tr:last-child td { border-bottom: none; }
+    .dot-low    { color: var(--approve); font-weight: 700; }
+    .dot-medium { color: var(--review);  font-weight: 700; }
+    .dot-high   { color: var(--decline); font-weight: 700; }
+
+    /* Overall rating */
+    .overall-box {
+      background: linear-gradient(135deg, var(--primary), #16213e);
+      color: white; border-radius: var(--radius); padding: 2rem;
+      display: flex; gap: 2rem; align-items: center;
+    }
+    .overall-rating { font-size: 4rem; font-weight: 900; color: #fbbf24; flex-shrink: 0; }
+    .overall-text h3 { font-size: 1.15rem; font-weight: 700; margin-bottom: .4rem; }
+    .overall-text p  { color: rgba(255,255,255,.75); font-size: .875rem; line-height: 1.5; }
+
+    pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 1rem 1.25rem; font-size: .8rem; overflow-x: auto; line-height: 1.6; margin: .75rem 0; }
+  </style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="index.html">Mock<span>Shop</span></a>
+  <nav>
+    <a href="index.html">Store</a>
+    <a href="report.html" style="color:white">Report</a>
+  </nav>
+</header>
+
+<main>
+
+  <!-- Hero -->
+  <div class="report-hero">
+    <h1>SEON Docs Evaluation Report</h1>
+    <p>An LLM-driven integration assessment: building a real checkout with SEON's Fraud API while documenting every friction point.</p>
+    <div class="report-meta">
+      <span>Evaluated by Claude Sonnet 4.6</span>
+      <span>Date: 2026-05-06</span>
+      <span>Docs: docs.seon.io</span>
+      <span>Stack: Pure HTML/JS + Vercel Serverless</span>
+    </div>
+  </div>
+
+  <!-- How to use the demo -->
+  <div class="howto">
+    <h2>🚀 How to use this demo</h2>
+    <ol class="steps">
+      <li><p>Go to the <a href="index.html" style="color:#1d4ed8;font-weight:600">Store</a> and pick any product.</p></li>
+      <li><p>Fill in the checkout form. Use a real email address and enter a 6-digit card BIN — try <code>424242</code> (Visa), <code>555555</code> (Mastercard), or <code>378282</code> (Amex). Phone is optional.</p></li>
+      <li><p>Hit <strong>Place order &amp; pay</strong>. SEON's JS Agent captures your device fingerprint, then our serverless proxy POSTs to the SEON Fraud API.</p></li>
+      <li><p>A result modal shows the decision: <strong style="color:var(--approve)">APPROVE</strong>, <strong style="color:var(--review)">REVIEW</strong>, or <strong style="color:var(--decline)">DECLINE</strong> — plus the fraud score and enriched data (email domain, IP country, card type, VPN status).</p></li>
+      <li><p>Check the SEON Admin sandbox dashboard to see the transaction appear in real time.</p></li>
+    </ol>
+  </div>
+
+  <!-- What was built -->
+  <div class="section">
+    <h2 class="section-title"><span class="icon">🔧</span> What was built</h2>
+    <div class="card">
+      <p style="font-size:.9rem;line-height:1.7;color:#374151">
+        Starting from an empty folder with nothing but the SEON docs website, an LLM (Claude Sonnet 4.6) read the documentation, designed and built a complete mock ecommerce store, and produced this evaluation — all in a single session.
+      </p>
+      <br/>
+      <p style="font-size:.9rem;line-height:1.7;color:#374151">The integration covers the <strong>full recommended flow</strong>:</p>
+      <ul style="margin:.75rem 0 .75rem 1.5rem;font-size:.875rem;line-height:1.9;color:#374151">
+        <li><strong>SEON JS Agent v6</strong> — loaded from CDN, initialized on page load for behavioral biometrics, <code>getSession()</code> called on form submit to capture an encrypted device fingerprint token</li>
+        <li><strong>Client IP detection</strong> — fetched from <code>api.ipify.org</code> before the API call</li>
+        <li><strong>Fraud API</strong> — <code>POST /SeonRestService/fraud-api/v2/</code> with <code>action_type: purchase</code>, email, IP, card BIN, session token, purchase amount, and custom fields</li>
+        <li><strong>Vercel serverless proxy</strong> (<code>/api/seon-check</code>) — keeps the API key server-side, eliminates CORS, mirrors production patterns</li>
+        <li><strong>Decision rendering</strong> — APPROVE / REVIEW / DECLINE result modal with score and key enrichment details</li>
+      </ul>
+      <pre>Frontend (checkout.html)
+  └─ SEON JS Agent → getSession() → session token
+  └─ POST /api/seon-check { email, ip, card_bin, session, amount, … }
+        │
+        ▼
+Vercel Edge Function (api/seon-check.js)
+  └─ POST https://api.seon.io/SeonRestService/fraud-api/v2/
+       Header: X-API-KEY (from env, never exposed to browser)
+        │
+        ▼
+SEON Response: { state: "APPROVE"|"REVIEW"|"DECLINE", fraud_score, email_details, ip_details, card_details }</pre>
+    </div>
+  </div>
+
+  <!-- How easy was it — scorecard -->
+  <div class="section">
+    <h2 class="section-title"><span class="icon">⏱</span> How easy was the integration?</h2>
+    <div class="score-strip">
+      <div class="score-card score-approve">
+        <div class="score-label">Authentication</div>
+        <div class="score-value">Easy</div>
+        <div class="score-sub">Standard header, zero friction</div>
+      </div>
+      <div class="score-card score-review">
+        <div class="score-label">End-to-end flow</div>
+        <div class="score-value">Medium</div>
+        <div class="score-sub">Requires reading 4+ pages to synthesize</div>
+      </div>
+      <div class="score-card score-decline">
+        <div class="score-label">JS Agent setup</div>
+        <div class="score-value">Hard</div>
+        <div class="score-sub">Buried, underpromoted, silent failure</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <table class="complexity-table">
+        <thead>
+          <tr>
+            <th>Integration step</th>
+            <th>Complexity</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Authentication setup</td><td class="dot-low">● Low</td><td>X-API-KEY header, clearly documented in Introduction</td></tr>
+          <tr><td>Understanding API architecture</td><td class="dot-medium">● Medium</td><td>Multiple pages to read; no single canonical flow doc</td></tr>
+          <tr><td>Building the request payload</td><td class="dot-low">● Low</td><td>Quick Start selector made field selection fast</td></tr>
+          <tr><td>JS Agent device fingerprinting</td><td class="dot-high">● High</td><td>Buried in Fraud API page; easy to miss; silent failure mode</td></tr>
+          <tr><td>Parsing the response</td><td class="dot-medium">● Medium</td><td>No full response example — field paths must be inferred</td></tr>
+          <tr><td>APPROVE / REVIEW / DECLINE logic</td><td class="dot-low">● Low</td><td>Threshold table is clear and unambiguous</td></tr>
+          <tr><td>Error handling</td><td class="dot-medium">● Medium</td><td>Error codes on a separate page, not cross-linked</td></tr>
+          <tr><td>CORS / browser-vs-server setup</td><td class="dot-high">● High</td><td>Not documented — discovered only by attempting it</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- What works well -->
+  <div class="section">
+    <h2 class="section-title"><span class="icon">✅</span> What works well</h2>
+    <div class="findings">
+
+      <div class="finding finding-good">
+        <div class="finding-title">
+          <span class="impact-badge impact-good">Strength</span>
+          Clear 3-step mental model
+        </div>
+        <div class="finding-body">The Introduction page's "Send data → Enrich & Score → Feedback" structure gives an LLM an immediately graspable workflow. This is the single most important structural choice in the docs.</div>
+      </div>
+
+      <div class="finding finding-good">
+        <div class="finding-title">
+          <span class="impact-badge impact-good">Strength</span>
+          Risk score thresholds are explicitly tabulated
+        </div>
+        <div class="finding-body">APPROVE (0–10) / REVIEW (10–20) / DECLINE (20+) in a clean table. LLMs generate correct conditional logic from tables — no hallucination risk here.</div>
+      </div>
+
+      <div class="finding finding-good">
+        <div class="finding-title">
+          <span class="impact-badge impact-good">Strength</span>
+          Industry + use-case Quick Start selector
+        </div>
+        <div class="finding-body">Choosing "Ecommerce + Payment" instantly filtered the payload to the relevant fields. This is a <strong>best-in-class feature</strong> — most fraud APIs force you to read a 200-field reference and guess.</div>
+      </div>
+
+      <div class="finding finding-good">
+        <div class="finding-title">
+          <span class="impact-badge impact-good">Strength</span>
+          Multi-language code examples + Postman collection
+        </div>
+        <div class="finding-body">cURL, Java, Python, and PHP examples on the Fraud API page give concrete, parseable templates. The Postman collection link lets developers test immediately without crafting requests from scratch.</div>
+      </div>
+
+      <div class="finding finding-good">
+        <div class="finding-title">
+          <span class="impact-badge impact-good">Strength</span>
+          Modular API — all fields optional, config-driven
+        </div>
+        <div class="finding-body">The explanation that each sub-API (Email, Phone, IP, BIN) is opt-in via <code>config.api_fields</code> lets an LLM generate a minimal working payload without accidentally enabling slow or expensive enrichments.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- What can be improved -->
+  <div class="section">
+    <h2 class="section-title"><span class="icon">⚠️</span> What can be improved</h2>
+    <div class="findings">
+
+      <div class="finding finding-high">
+        <div class="finding-title">
+          <span class="impact-badge impact-high">High impact</span>
+          No single end-to-end integration walkthrough
+        </div>
+        <div class="finding-body">
+          To understand a complete purchase flow an integrator must synthesize: Introduction → API Integration Guide → Fraud API Reference → JS Agent section → Label API. Each page adds context missing from the others. There is no sequence diagram.
+        </div>
+        <div class="finding-rec">
+          <strong>Recommendation:</strong> Add a "Complete integration walkthrough" page with a sequence diagram covering <em>JS Agent load → getSession → POST Fraud API → read state → POST Label API</em>. This single change reduces LLM hallucination risk most.
+        </div>
+      </div>
+
+      <div class="finding finding-high">
+        <div class="finding-title">
+          <span class="impact-badge impact-high">High impact</span>
+          JS Agent is buried and easy to miss
+        </div>
+        <div class="finding-body">
+          The JS Agent setup is a deep subsection of the Fraud API page — not a top-level nav item, not mentioned in the Quick Start, and not cross-linked from the Integration Guide. The payload shows a <code>session</code> field with no immediate hint where it comes from. Worse, sending without it returns a valid response — the failure is silent.
+        </div>
+        <div class="finding-rec">
+          <strong>Recommendation:</strong> Add a callout at the top of the Fraud API page: <em>"Using device fingerprinting? You must integrate the JS Agent first. [→ JS Agent setup]"</em>. Promote JS Agent to a first-class nav item. Note in the Quick Start that <code>session</code> comes from the JS Agent.
+        </div>
+      </div>
+
+      <div class="finding finding-medium">
+        <div class="finding-title">
+          <span class="impact-badge impact-medium">Medium impact</span>
+          No realistic full response JSON example
+        </div>
+        <div class="finding-body">
+          The response documentation describes fields but includes no complete JSON example for a typical APPROVE transaction. An LLM building response-parsing code must guess field paths — e.g., is it <code>response.state</code> or <code>response.data.state</code>?
+        </div>
+        <div class="finding-rec">
+          <strong>Recommendation:</strong> Add collapsible full JSON examples for each state (APPROVE, REVIEW, DECLINE) with realistic-ish data. Standard practice in high-quality API docs (Stripe, Twilio).
+        </div>
+      </div>
+
+      <div class="finding finding-medium">
+        <div class="finding-title">
+          <span class="impact-badge impact-medium">Medium impact</span>
+          CORS / browser-vs-server architecture undocumented
+        </div>
+        <div class="finding-body">
+          The docs don't mention whether the SEON API supports direct browser calls. All examples are server-side but no warning is given. Attempting a browser-direct integration (like this demo) may silently fail or produce confusing network errors.
+        </div>
+        <div class="finding-rec">
+          <strong>Recommendation:</strong> Add one sentence in the Introduction: <em>"The SEON API is designed for server-side use. Direct browser calls may be blocked by CORS. Always proxy requests through your backend."</em>
+        </div>
+      </div>
+
+      <div class="finding finding-medium">
+        <div class="finding-title">
+          <span class="impact-badge impact-medium">Medium impact</span>
+          <code>action_type</code> values not enumerated in one place
+        </div>
+        <div class="finding-body">
+          Valid values (<code>account_register</code>, <code>account_login</code>, <code>purchase</code>, <code>deposit</code>, <code>withdrawal</code>) are scattered in prose. An LLM may hallucinate plausible but wrong values (e.g., <code>payment</code> instead of <code>purchase</code>).
+        </div>
+        <div class="finding-rec">
+          <strong>Recommendation:</strong> Add a small reference table of all <code>action_type</code> values with a one-line "when to use" description in the Fraud API request section.
+        </div>
+      </div>
+
+      <div class="finding finding-low">
+        <div class="finding-title">
+          <span class="impact-badge impact-low">Low impact</span>
+          Feedback loop (Label API) framed as optional
+        </div>
+        <div class="finding-body">
+          Step 3 reads as best-practice guidance. New integrators routinely skip it, which degrades ML model quality over time.
+        </div>
+        <div class="finding-rec">
+          <strong>Recommendation:</strong> Frame labeling as part of the core integration checklist with a "mandatory vs optional" distinction.
+        </div>
+      </div>
+
+      <div class="finding finding-low">
+        <div class="finding-title">
+          <span class="impact-badge impact-low">Low impact</span>
+          Session token lifecycle not specified
+        </div>
+        <div class="finding-body">
+          The JS Agent docs don't say whether the <code>session</code> token is single-use or reusable. A multi-step checkout flow developer doesn't know if they need to call <code>getSession()</code> once or per request.
+        </div>
+        <div class="finding-rec">
+          <strong>Recommendation:</strong> Add: <em>"Each <code>getSession()</code> call returns a unique, single-use token. Generate a new session per transaction."</em>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Overall rating -->
+  <div class="section">
+    <h2 class="section-title"><span class="icon">🏁</span> Overall rating</h2>
+    <div class="overall-box">
+      <div class="overall-rating">7/10</div>
+      <div class="overall-text">
+        <h3>Good — targeted improvements would make it best-in-class for LLM-assisted integration</h3>
+        <p>SEON's docs are well above average for a fraud-as-a-service platform. The Quick Start selector, modular API design, and clear scoring thresholds stand out. The primary gap — for both human developers and LLMs — is the lack of a single canonical end-to-end flow resource. Addressing the top 3 recommendations would make SEON one of the easiest fraud APIs to integrate via AI-assisted tooling.</p>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  MockShop &copy; 2025 — SEON Docs Evaluation &nbsp;·&nbsp; Evaluated by Claude Sonnet 4.6
+</footer>
+
+</body>
+</html>
