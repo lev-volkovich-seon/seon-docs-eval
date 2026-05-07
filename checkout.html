@@ -300,10 +300,10 @@ async function handleCheckout() {
     if (seonReady) {
       try {
         sessionToken = await seon.getSession({
-          host:       'seondf.com',
-          session_id: uuid(),
-          silentMode: true,   // suppress any SEON-injected UI — belongs here, not in init()
+          silentMode: true,  // only valid SDK config options here — no host/session_id
         });
+        // Note: session_id is a Fraud API request field, NOT a getSession() param.
+        // host is a Fraud API getSession config that doesn't exist — inferred incorrectly from docs.
       } catch (e) {
         sessionErr = e.message;
         console.error('[SEON getSession]', e);
