@@ -145,8 +145,7 @@
 
 <script>
 // ── Configuration ──────────────────────────────────────────────────────────
-const SEON_API_KEY = 'YOUR_SEON_API_KEY'; // Replace with your sandbox key
-const SEON_API_URL = 'https://api.seon.io/SeonRestService/fraud-api/v2/';
+const SEON_API_URL = '/api/seon-check'; // Serverless proxy — key is server-side
 
 // ── Parse URL params ────────────────────────────────────────────────────────
 const params = new URLSearchParams(location.search);
@@ -216,11 +215,6 @@ async function handleCheckout() {
     return;
   }
 
-  if (SEON_API_KEY === 'YOUR_SEON_API_KEY') {
-    showError('API key not configured. Replace YOUR_SEON_API_KEY in checkout.html with your SEON sandbox license key.');
-    return;
-  }
-
   // Loading state
   const btn = document.getElementById('pay-btn');
   btn.innerHTML = '<span class="spinner"></span>Checking transaction…';
@@ -274,13 +268,10 @@ async function handleCheckout() {
       payload.session = sessionToken;
     }
 
-    // 4. Call SEON Fraud API
+    // 4. Call SEON Fraud API via serverless proxy
     const response = await fetch(SEON_API_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-KEY': SEON_API_KEY,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
 
@@ -298,11 +289,8 @@ async function handleCheckout() {
 
     let msg = err.message;
 
-    // CORS detection
-    if (err instanceof TypeError && err.message.includes('fetch')) {
-      msg = 'Network error — SEON API may not allow direct browser calls (CORS). '
-          + 'A backend proxy is recommended for production. '
-          + 'Check the browser console for details.';
+    if (err instanceof TypeError) {
+      msg = 'Network error — could not reach the API. Check your connection.';
     }
 
     showError(msg);
