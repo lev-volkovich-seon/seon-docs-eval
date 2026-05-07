@@ -106,6 +106,11 @@
         </div>
       </div>
 
+      <!-- Auto-fill -->
+      <button class="btn btn-outline" id="autofill-btn" style="width:100%;justify-content:center;margin-bottom:.75rem" onclick="autoFill()">
+        ⚡ Auto-fill with test data
+      </button>
+
       <!-- SEON fingerprint status -->
       <div class="seon-badge loading" id="seon-status">
         <span class="dot"></span>
@@ -147,6 +152,45 @@
 <script>
 // ── Configuration ──────────────────────────────────────────────────────────
 const SEON_API_URL = '/api/seon-check'; // Serverless proxy — key is server-side
+
+// ── Auto-fill test data ──────────────────────────────────────────────────────
+const TEST_PROFILES = [
+  { name: 'Alice Johnson',   email: 'alice.johnson@gmail.com',      phone: '+14155552671', bin: '424242', city: 'San Francisco', postal: '94105', street: '101 Market St',     flag: '🟢 Low risk' },
+  { name: 'Bob Smith',       email: 'bob.smith@outlook.com',        phone: '+12125550182', bin: '555555', city: 'New York',      postal: '10001', street: '350 5th Ave',       flag: '🟢 Low risk' },
+  { name: 'Carlos Rivera',   email: 'carlos.r@yahoo.com',           phone: '+13105559823', bin: '378282', city: 'Los Angeles',   postal: '90001', street: '6500 Sunset Blvd',  flag: '🟢 Low risk' },
+  { name: 'Diana Wei',       email: 'diana.wei@protonmail.com',     phone: '+16175554321', bin: '400000', city: 'Boston',        postal: '02101', street: '1 Financial Ctr',   flag: '🟡 Medium risk' },
+  { name: 'Ethan Müller',    email: 'ethan.muller@temp-mail.org',   phone: '+4915215559876',bin: '676130', city: 'Berlin',       postal: '10115', street: 'Unter den Linden 1',flag: '🟡 Medium risk' },
+  { name: 'Fiona Black',     email: 'fiona99@mailinator.com',       phone: '+44207559001', bin: '491761', city: 'London',        postal: 'EC1A 1BB', street: '10 Downing St', flag: '🔴 Higher risk' },
+  { name: 'George Tanaka',   email: 'g.tanaka@guerrillamail.com',   phone: '+81345559012', bin: '356600', city: 'Tokyo',         postal: '100-0001', street: '1-1 Chiyoda',   flag: '🔴 Higher risk' },
+];
+
+let profileIndex = 0;
+
+function autoFill() {
+  const p = TEST_PROFILES[profileIndex % TEST_PROFILES.length];
+  profileIndex++;
+
+  document.getElementById('full_name').value  = p.name;
+  document.getElementById('email').value      = p.email;
+  document.getElementById('phone').value      = p.phone;
+  document.getElementById('card_bin').value   = p.bin;
+  document.getElementById('card_expiry').value= '12/27';
+  document.getElementById('card_cvv').value   = '123';
+  document.getElementById('address').value    = p.street;
+  document.getElementById('city').value       = p.city;
+  document.getElementById('postal').value     = p.postal;
+
+  const btn = document.getElementById('autofill-btn');
+  btn.textContent = `⚡ ${p.flag} — click again to rotate`;
+
+  // Flash fields
+  ['full_name','email','phone','card_bin','card_expiry','card_cvv','address','city','postal'].forEach(id => {
+    const el = document.getElementById(id);
+    el.style.transition = 'background .15s';
+    el.style.background = '#fef9c3';
+    setTimeout(() => { el.style.background = ''; }, 600);
+  });
+}
 
 // ── Parse URL params ────────────────────────────────────────────────────────
 const params = new URLSearchParams(location.search);
