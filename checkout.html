@@ -298,9 +298,9 @@ async function handleCheckout() {
       ip: clientIp || undefined,
       phone_number: phone || undefined,
       card_bin: cardBin,
-      purchase_amount: amount,
-      purchase_currency: 'USD',
-      full_name: name,
+      transaction_amount: amount,   // NOT purchase_amount — docs inconsistency (Quick Start vs field reference)
+      transaction_currency: 'USD',  // NOT purchase_currency
+      user_fullname: name,          // NOT full_name
       custom_fields: {
         product_sku: sku,
         product_name: productName,

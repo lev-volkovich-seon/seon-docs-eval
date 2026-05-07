@@ -289,6 +289,7 @@
       <span class="hero-chip">8 docs pages read</span>
       <span class="hero-chip">~27,400 tokens consumed</span>
       <span class="hero-chip">Ecommerce · Purchase flow</span>
+      <span class="hero-chip" style="background:rgba(239,68,68,.2);border-color:rgba(239,68,68,.4);color:#fca5a5">1 production bug found</span>
     </div>
   </div>
 
@@ -298,7 +299,7 @@
     <div class="verdict-text">
       <h2>Good documentation — not LLM-optimised, but a viable integration path</h2>
       <p>SEON's docs contain everything an LLM needs to build a working integration, but that information is spread across 5+ separate pages with no machine-readable entry point, no structured flow diagram, and critical steps buried or implied. An LLM can succeed here, but it requires roughly <strong>5× more tokens</strong> than a purpose-built LLM-friendly docs site would need.</p>
-      <div class="not-optimized-flag">⚠ Not LLM-optimised — no <code>llms.txt</code>, no OpenAPI spec linked, no single-page flow reference</div>
+      <div class="not-optimized-flag">⚠ Not LLM-optimised — no <code>llms.txt</code>, no OpenAPI spec, Quick Start field names diverge from spec (broke production)</div>
     </div>
   </div>
 
@@ -668,6 +669,47 @@
         <div class="finding-rec"><strong>Fix:</strong> Add a table to the Fraud API request section: action_type | When to use | Notes. Five rows. Could also appear in the Quick Start. This single table eliminates a common integration mistake.</div>
       </div>
 
+      <div class="finding finding-high" style="border-color:#7c3aed;background:#faf5ff">
+        <div class="finding-title"><span class="impact-badge" style="background:#ede9fe;color:#4c1d95">🐛 Confirmed Bug</span> Quick Start field names don't match the API — broke the integration in production</div>
+        <div class="finding-body">
+          This was discovered by running the actual API call. The Quick Start examples (the LLM's primary reference for field names) use <strong><code>purchase_amount</code></strong> and <strong><code>purchase_currency</code></strong>, but the real Fraud API spec uses <strong><code>transaction_amount</code></strong> and <strong><code>transaction_currency</code></strong>. Similarly, <code>full_name</code> in the Quick Start maps to <code>user_fullname</code> in the spec. Sending the Quick Start's field names verbatim returns error <code>3005: Unrecognized property</code>.
+          <br><br>
+          This is the most concrete example of why LLM-optimised docs matter: the LLM read the Quick Start first (the promoted, highest-visibility resource), generated field names from it, built the entire integration around them, and only discovered the mismatch at runtime when a real API call failed. A single source of truth — an OpenAPI spec — would have prevented this entirely.
+        </div>
+        <div class="finding-evidence">
+          <strong>Actual API error received</strong>
+          <code style="display:block;margin-top:.4rem;white-space:pre-wrap;font-size:.78rem;background:#1e293b;color:#e2e8f0;padding:.75rem;border-radius:6px">{"success":false,"error":{"code":"3005","message":"Unrecognized property: 'purchase_amount'. Please check the documentation for supported properties."},"data":{}}</code>
+          <div style="margin-top:.75rem">
+            <strong>Field name mismatches — Quick Start vs actual API spec</strong>
+            <table style="width:100%;border-collapse:collapse;margin-top:.4rem;font-size:.8rem">
+              <tr style="background:#f1f5f9">
+                <th style="text-align:left;padding:.35rem .6rem;border:1px solid #e2e8f0">Quick Start (what LLM used)</th>
+                <th style="text-align:left;padding:.35rem .6rem;border:1px solid #e2e8f0">Actual API field name</th>
+                <th style="text-align:left;padding:.35rem .6rem;border:1px solid #e2e8f0">Result</th>
+              </tr>
+              <tr>
+                <td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>purchase_amount</code></td>
+                <td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>transaction_amount</code></td>
+                <td style="padding:.35rem .6rem;border:1px solid #e2e8f0;color:#dc2626">❌ Error 3005 — broke the call</td>
+              </tr>
+              <tr style="background:#fafafa">
+                <td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>purchase_currency</code></td>
+                <td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>transaction_currency</code></td>
+                <td style="padding:.35rem .6rem;border:1px solid #e2e8f0;color:#dc2626">❌ Error 3005</td>
+              </tr>
+              <tr>
+                <td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>full_name</code></td>
+                <td style="padding:.35rem .6rem;border:1px solid #e2e8f0"><code>user_fullname</code></td>
+                <td style="padding:.35rem .6rem;border:1px solid #e2e8f0;color:#92400e">⚠ Silently ignored</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+        <div class="finding-rec">
+          <strong>Fix:</strong> Sync the Quick Start examples with the canonical field reference — they must use identical field names. Better still, generate Quick Start examples programmatically from an OpenAPI spec so they can never drift out of sync. This is a one-time fix with zero maintenance cost if OpenAPI-driven.
+        </div>
+      </div>
+
       <div class="finding finding-medium">
         <div class="finding-title"><span class="impact-badge impact-medium">Medium impact</span> No full realistic JSON response example</div>
         <div class="finding-body">
@@ -818,9 +860,9 @@
 
       <li class="rec-item">
         <div class="rec-content">
-          <h4>Add <code>action_type</code> enum table + full JSON response examples</h4>
-          <p>5-row table of valid action_type values. Collapsible APPROVE / REVIEW / DECLINE response JSON examples. Two content additions that eliminate major hallucination risks for LLMs generating integration code.</p>
-          <span class="rec-effort effort-low">Effort: Low (~2–3 hours)</span>
+          <h4>Fix Quick Start field names + add <code>action_type</code> enum table + full JSON response examples</h4>
+          <p><strong style="color:var(--decline)">Production bug confirmed:</strong> Quick Start uses <code>purchase_amount</code> / <code>purchase_currency</code> / <code>full_name</code> but the real API requires <code>transaction_amount</code> / <code>transaction_currency</code> / <code>user_fullname</code>. Sending Quick Start examples verbatim returns error 3005. Fix by syncing Quick Start to the canonical field reference — ideally by generating examples from an OpenAPI spec so they can never drift. Also add a 5-row action_type table and collapsible APPROVE/REVIEW/DECLINE response JSON examples.</p>
+          <span class="rec-effort effort-low">Effort: Low (field sync is a search-replace; OpenAPI generation is medium)</span>
         </div>
       </li>
 
